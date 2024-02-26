@@ -29,3 +29,6 @@ def test_create_coupons(discount_type):
     print(resjson)
 
 
+@pytest.mark.jenkins
+def test_jenkins_test():
+    pass
