@@ -6,8 +6,8 @@ class CreadentialsAPIUtilities:
         pass
 
     def get_env_api_keys(self):
-        wc_key = os.environ.get('WC_KEY')
-        wc_secret = os.environ.get('WC_SECRET')
+        wc_key = "ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13" #os.environ.get('WC_KEY')
+        wc_secret = "cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6" # os.environ.get('WC_SECRET')
 
         if not wc_key or not wc_secret:
             raise Exception("WC_KEY and WC_SECRET should be in Env Variables")
