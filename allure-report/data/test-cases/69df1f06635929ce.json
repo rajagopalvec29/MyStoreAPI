@@ -1,0 +1,92 @@
+{
+  "uid" : "69df1f06635929ce",
+  "name" : "test_create_coupons[fixed_cart]",
+  "fullName" : "TestCases.Coupons.test_create_coupon#test_create_coupons",
+  "historyId" : "63fe78d11daf33385c29e14164dd596c",
+  "time" : {
+    "start" : 1708344229844,
+    "stop" : 1708344232548,
+    "duration" : 2704
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ ],
+    "attachments" : [ {
+      "uid" : "d05cc13222fa0d32",
+      "name" : "log",
+      "source" : "d05cc13222fa0d32.txt",
+      "type" : "text/plain",
+      "size" : 413
+    }, {
+      "uid" : "3f79fb00c6cee1a3",
+      "name" : "stdout",
+      "source" : "3f79fb00c6cee1a3.txt",
+      "type" : "text/plain",
+      "size" : 897
+    } ],
+    "parameters" : [ ],
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "stepsCount" : 0,
+    "hasContent" : true
+  },
+  "afterStages" : [ ],
+  "labels" : [ {
+    "name" : "tag",
+    "value" : "coupons"
+  }, {
+    "name" : "tag",
+    "value" : "tc19"
+  }, {
+    "name" : "parentSuite",
+    "value" : "TestCases.Coupons"
+  }, {
+    "name" : "suite",
+    "value" : "test_create_coupon"
+  }, {
+    "name" : "host",
+    "value" : "DESKTOP-TT53EVU"
+  }, {
+    "name" : "thread",
+    "value" : "6852-MainThread"
+  }, {
+    "name" : "framework",
+    "value" : "pytest"
+  }, {
+    "name" : "language",
+    "value" : "cpython3"
+  }, {
+    "name" : "package",
+    "value" : "TestCases.Coupons.test_create_coupon"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ {
+    "name" : "discount_type",
+    "value" : "'fixed_cart'"
+  } ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ {
+      "uid" : "d66214dc0dc97a",
+      "status" : "passed",
+      "time" : {
+        "start" : 1708344030688,
+        "stop" : 1708344033179,
+        "duration" : 2491
+      }
+    } ],
+    "categories" : [ ],
+    "tags" : [ "tc19", "coupons" ]
+  },
+  "source" : "69df1f06635929ce.json",
+  "parameterValues" : [ "'fixed_cart'" ]
+}

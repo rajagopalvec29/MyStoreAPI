@@ -1,0 +1,2 @@
+[32mINFO    [0m root:RequestUtilities.py:30 Payload = {'code': 'az_pgvedowwcmoff', 'discount_type': 'fixed_cart', 'amount': '97', 'individual_use': 'true', 'exclude_sale_items': 'true'}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/coupons , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6

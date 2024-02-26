@@ -1,0 +1,1732 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function find_all(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sort_column(elem) {
+    toggle_sort_states(elem);
+    var colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    var key;
+    if (elem.classList.contains('numeric')) {
+        key = key_num;
+    } else if (elem.classList.contains('result')) {
+        key = key_result;
+    } else {
+        key = key_alpha;
+    }
+    sort_table(elem, key(colIndex));
+}
+
+function show_all_extras() {
+    find_all('.col-result').forEach(show_extras);
+}
+
+function hide_all_extras() {
+    find_all('.col-result').forEach(hide_extras);
+}
+
+function show_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.remove("collapsed");
+    expandcollapse.classList.remove("expander");
+    expandcollapse.classList.add("collapser");
+}
+
+function hide_extras(colresult_elem) {
+    var extras = colresult_elem.parentNode.nextElementSibling;
+    var expandcollapse = colresult_elem.firstElementChild;
+    extras.classList.add("collapsed");
+    expandcollapse.classList.remove("collapser");
+    expandcollapse.classList.add("expander");
+}
+
+function show_filters() {
+    var filter_items = document.getElementsByClassName('filter');
+    for (var i = 0; i < filter_items.length; i++)
+        filter_items[i].hidden = false;
+}
+
+function add_collapse() {
+    // Add links for show/hide all
+    var resulttable = find('table#results-table');
+    var showhideall = document.createElement("p");
+    showhideall.innerHTML = '<a href="javascript:show_all_extras()">Show all details</a> / ' +
+                            '<a href="javascript:hide_all_extras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    find_all('.col-result').forEach(function(elem) {
+        var collapsed = get_query_parameter('collapsed') || 'Passed';
+        var extras = elem.parentNode.nextElementSibling;
+        var expandcollapse = document.createElement("span");
+        if (extras.classList.contains("collapsed")) {
+            expandcollapse.classList.add("expander")
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add("collapsed");
+            expandcollapse.classList.add("expander");
+        } else {
+            expandcollapse.classList.add("collapser");
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener("click", function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains("collapsed")) {
+                show_extras(event.currentTarget);
+            } else {
+                hide_extras(event.currentTarget);
+            }
+        });
+    })
+}
+
+function get_query_parameter(name) {
+    var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () {
+    reset_sort_headers();
+
+    add_collapse();
+
+    show_filters();
+
+    sort_column(find('.initial-sort'));
+
+    find_all('.sortable').forEach(function(elem) {
+        elem.addEventListener("click",
+                              function(event) {
+                                  sort_column(elem);
+                              }, false)
+    });
+
+};
+
+function sort_table(clicked, key_func) {
+    var rows = find_all('.results-table-row');
+    var reversed = !clicked.classList.contains('asc');
+    var sorted_rows = sort(rows, key_func, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    var thead = document.getElementById("results-table-head");
+    document.getElementById('results-table').remove();
+    var parent = document.createElement("table");
+    parent.id = "results-table";
+    parent.appendChild(thead);
+    sorted_rows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName("BODY")[0].appendChild(parent);
+}
+
+function sort(items, key_func, reversed) {
+    var sort_array = items.map(function(item, i) {
+        return [key_func(item), i];
+    });
+
+    sort_array.sort(function(a, b) {
+        var key_a = a[0];
+        var key_b = b[0];
+
+        if (key_a == key_b) return 0;
+
+        if (reversed) {
+            return (key_a < key_b ? 1 : -1);
+        } else {
+            return (key_a > key_b ? 1 : -1);
+        }
+    });
+
+    return sort_array.map(function(item) {
+        var index = item[1];
+        return items[index];
+    });
+}
+
+function key_alpha(col_index) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[col_index].firstChild.data.toLowerCase();
+    };
+}
+
+function key_num(col_index) {
+    return function(elem) {
+        return parseFloat(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function key_result(col_index) {
+    return function(elem) {
+        var strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+                       'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[col_index].firstChild.data);
+    };
+}
+
+function reset_sort_headers() {
+    find_all('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    find_all('.sortable').forEach(function(elem) {
+        var icon = document.createElement("div");
+        icon.className = "sort-icon";
+        icon.textContent = "vvv";
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove("desc", "active");
+        elem.classList.add("asc", "inactive");
+    });
+}
+
+function toggle_sort_states(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        reset_sort_headers();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function is_all_rows_hidden(value) {
+  return value.hidden == false;
+}
+
+function filter_table(elem) {
+    var outcome_att = "data-test-result";
+    var outcome = elem.getAttribute(outcome_att);
+    class_outcome = outcome + " results-table-row";
+    var outcome_rows = document.getElementsByClassName(class_outcome);
+
+    for(var i = 0; i < outcome_rows.length; i++){
+        outcome_rows[i].hidden = !elem.checked;
+    }
+
+    var rows = find_all('.results-table-row').filter(is_all_rows_hidden);
+    var all_rows_hidden = rows.length == 0 ? true : false;
+    var not_found_message = document.getElementById("not-found-message");
+    not_found_message.hidden = !all_rows_hidden;
+}
+</script>
+    <h1>ExecutionReport.html</h1>
+    <p>Report generated on 19-Feb-2024 at 14:38:57 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v2.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>ENVIRONMENT</td>
+        <td>test</td></tr>
+      <tr>
+        <td>MODULE NAME</td>
+        <td>MY STORE</td></tr>
+      <tr>
+        <td>PROJECT NAME</td>
+        <td>WOO COMMERCE</td></tr>
+      <tr>
+        <td>TESTER</td>
+        <td>RAJA</td></tr></table>
+    <h2>Summary</h2>
+    <p>20 tests ran in 106.53 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="passed">20 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filter_table(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable numeric" col="duration">Duration</th>
+          <th>Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Coupons/test_create_coupon.py::test_create_coupons[percent]</td>
+          <td class="col-duration">1.85</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>{&#x27;id&#x27;: 247, &#x27;code&#x27;: &#x27;az_vubqjpssyyoff&#x27;, &#x27;amount&#x27;: &#x27;64.00&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:12&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:12&#x27;, &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:12&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:12&#x27;, &#x27;discount_type&#x27;: &#x27;percent&#x27;, &#x27;description&#x27;: &#x27;&#x27;, &#x27;date_expires&#x27;: None, &#x27;date_expires_gmt&#x27;: None, &#x27;usage_count&#x27;: 0, &#x27;individual_use&#x27;: True, &#x27;product_ids&#x27;: [], &#x27;excluded_product_ids&#x27;: [], &#x27;usage_limit&#x27;: None, &#x27;usage_limit_per_user&#x27;: None, &#x27;limit_usage_to_x_items&#x27;: None, &#x27;free_shipping&#x27;: False, &#x27;product_categories&#x27;: [], &#x27;excluded_product_categories&#x27;: [], &#x27;exclude_sale_items&#x27;: True, &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;, &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;, &#x27;email_restrictions&#x27;: [], &#x27;used_by&#x27;: [], &#x27;meta_data&#x27;: [], &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/247&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;code&#x27;: &#x27;az_vubqjpssyyoff&#x27;, &#x27;discount_type&#x27;: &#x27;percent&#x27;, &#x27;amount&#x27;: &#x27;64&#x27;, &#x27;individual_use&#x27;: &#x27;true&#x27;, &#x27;exclude_sale_items&#x27;: &#x27;true&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/coupons , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Coupons/test_create_coupon.py::test_create_coupons[fixed_cart]</td>
+          <td class="col-duration">1.21</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>{&#x27;id&#x27;: 248, &#x27;code&#x27;: &#x27;az_vvelzmbnlhoff&#x27;, &#x27;amount&#x27;: &#x27;57.00&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:13&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:13&#x27;, &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:13&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:13&#x27;, &#x27;discount_type&#x27;: &#x27;fixed_cart&#x27;, &#x27;description&#x27;: &#x27;&#x27;, &#x27;date_expires&#x27;: None, &#x27;date_expires_gmt&#x27;: None, &#x27;usage_count&#x27;: 0, &#x27;individual_use&#x27;: True, &#x27;product_ids&#x27;: [], &#x27;excluded_product_ids&#x27;: [], &#x27;usage_limit&#x27;: None, &#x27;usage_limit_per_user&#x27;: None, &#x27;limit_usage_to_x_items&#x27;: None, &#x27;free_shipping&#x27;: False, &#x27;product_categories&#x27;: [], &#x27;excluded_product_categories&#x27;: [], &#x27;exclude_sale_items&#x27;: True, &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;, &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;, &#x27;email_restrictions&#x27;: [], &#x27;used_by&#x27;: [], &#x27;meta_data&#x27;: [], &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/248&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;code&#x27;: &#x27;az_vvelzmbnlhoff&#x27;, &#x27;discount_type&#x27;: &#x27;fixed_cart&#x27;, &#x27;amount&#x27;: &#x27;57&#x27;, &#x27;individual_use&#x27;: &#x27;true&#x27;, &#x27;exclude_sale_items&#x27;: &#x27;true&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/coupons , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Coupons/test_create_coupon.py::test_create_coupons[fixed_product]</td>
+          <td class="col-duration">2.43</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>{&#x27;id&#x27;: 249, &#x27;code&#x27;: &#x27;az_xmbgwbpsvroff&#x27;, &#x27;amount&#x27;: &#x27;35.00&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:15&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:15&#x27;, &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:15&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:15&#x27;, &#x27;discount_type&#x27;: &#x27;fixed_product&#x27;, &#x27;description&#x27;: &#x27;&#x27;, &#x27;date_expires&#x27;: None, &#x27;date_expires_gmt&#x27;: None, &#x27;usage_count&#x27;: 0, &#x27;individual_use&#x27;: True, &#x27;product_ids&#x27;: [], &#x27;excluded_product_ids&#x27;: [], &#x27;usage_limit&#x27;: None, &#x27;usage_limit_per_user&#x27;: None, &#x27;limit_usage_to_x_items&#x27;: None, &#x27;free_shipping&#x27;: False, &#x27;product_categories&#x27;: [], &#x27;excluded_product_categories&#x27;: [], &#x27;exclude_sale_items&#x27;: True, &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;, &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;, &#x27;email_restrictions&#x27;: [], &#x27;used_by&#x27;: [], &#x27;meta_data&#x27;: [], &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/249&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;code&#x27;: &#x27;az_xmbgwbpsvroff&#x27;, &#x27;discount_type&#x27;: &#x27;fixed_product&#x27;, &#x27;amount&#x27;: &#x27;35&#x27;, &#x27;individual_use&#x27;: &#x27;true&#x27;, &#x27;exclude_sale_items&#x27;: &#x27;true&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/coupons , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Customers/test_create_customers.py::test_createnewcustomer</td>
+          <td class="col-duration">4.57</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_create_customers.py:12 &lt;&lt;&lt;&lt;This is create data&gt;&gt;&gt;&gt;&gt;
+[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;username&#x27;: &#x27;shbkHmJs&#x27;, &#x27;email&#x27;: &#x27;rxcfiotpcp@test.com&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/customers , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:test_create_customers.py:26 Data Created in Database DB user id :66<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Customers/test_create_customers.py::test_create_customer_fail_existing_user</td>
+          <td class="col-duration">0.73</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>{&#x27;code&#x27;: &#x27;registration-error-username-exists&#x27;,
+ &#x27;data&#x27;: {&#x27;status&#x27;: 400},
+ &#x27;message&#x27;: &#x27;An account is already registered with that username. Please &#x27;
+            &#x27;choose another.&#x27;}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;username&#x27;: &#x27;yrRlZpmj&#x27;, &#x27;email&#x27;: &#x27;datghgyyzf@test.com&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/customers , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Customers/test_get_customers.py::test_list_all_customer</td>
+          <td class="col-duration">0.46</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+[{&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/30&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://0.gravatar.com/avatar/c5c9265d0e85072594a9bef7836f34ff?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-01T07:23:26&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-01T07:23:26&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-01T07:23:27&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-01T07:23:27&#x27;,
+  &#x27;email&#x27;: &#x27;vbuabyrhdb@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 30,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;bCNFPKCE&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/26&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://2.gravatar.com/avatar/2d6341148e489ded661b81fda2422b70?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-01T06:54:34&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-01T06:54:34&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-01T06:54:35&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-01T06:54:35&#x27;,
+  &#x27;email&#x27;: &#x27;bdujccurnj@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 26,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;BOkKSpJE&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/38&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://2.gravatar.com/avatar/bc7687177d975c355fdcad13d31dc77a?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-02T13:11:01&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-02T13:11:01&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-02T13:11:02&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-02T13:11:02&#x27;,
+  &#x27;email&#x27;: &#x27;xsvlygztmh@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 38,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;bZzgPExh&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/55&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://0.gravatar.com/avatar/30beb4119c622c12a8472a07772a6172?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-12T11:25:48&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-12T11:25:48&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-12T11:25:51&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-12T11:25:51&#x27;,
+  &#x27;email&#x27;: &#x27;ytgbanhuqe@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 55,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;cxSdFBna&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/44&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://2.gravatar.com/avatar/2cefd13a978803e3d067cd0e07308aa7?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-02T16:27:53&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-02T16:27:53&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-02T16:27:54&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-02T16:27:54&#x27;,
+  &#x27;email&#x27;: &#x27;xchnciaftt@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 44,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;CymGlpdB&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/31&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://0.gravatar.com/avatar/3abb5c2ffc65c6655ccc6a38698492bd?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-01T07:29:35&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-01T07:29:35&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-01T07:29:36&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-01T07:29:36&#x27;,
+  &#x27;email&#x27;: &#x27;bkojzvcchy@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 31,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;DDPuIRUr&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/15&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://2.gravatar.com/avatar/594ac5ffbd5254649cc9700255dabece?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;John&#x27;,
+              &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-01-30T18:07:43&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-01-30T18:07:43&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-01-30T18:07:44&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-01-30T18:07:44&#x27;,
+  &#x27;email&#x27;: &#x27;grgr@tet.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;Raj&#x27;,
+  &#x27;id&#x27;: 15,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;Dose&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;John&#x27;,
+               &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;ddwefnfb&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/10&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://2.gravatar.com/avatar/ed0681dd377ba89278ea0735d420f7da?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;John&#x27;,
+              &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-01-30T17:49:08&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-01-30T17:49:08&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-01-30T17:49:09&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-01-30T17:49:09&#x27;,
+  &#x27;email&#x27;: &#x27;ddujkh@tet.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;Raj&#x27;,
+  &#x27;id&#x27;: 10,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;Dose&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;John&#x27;,
+               &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;dsdw&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/46&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://2.gravatar.com/avatar/525baf045b32a8b9611b13766d8c0c0f?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-02T16:32:38&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-02T16:32:38&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-02T16:32:39&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-02T16:32:39&#x27;,
+  &#x27;email&#x27;: &#x27;mfwawyytnu@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 46,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;dToSwHZe&#x27;},
+ {&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers&#x27;}],
+             &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/customers/51&#x27;}]},
+  &#x27;avatar_url&#x27;: &#x27;http://1.gravatar.com/avatar/45269c586db80b7c0a3cc1be7a1e6b8a?s=96&amp;d=mm&amp;r=g&#x27;,
+  &#x27;billing&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;country&#x27;: &#x27;&#x27;,
+              &#x27;email&#x27;: &#x27;&#x27;,
+              &#x27;first_name&#x27;: &#x27;&#x27;,
+              &#x27;last_name&#x27;: &#x27;&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;,
+              &#x27;postcode&#x27;: &#x27;&#x27;,
+              &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;date_created&#x27;: &#x27;2024-02-05T05:44:52&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-05T05:44:52&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-05T05:44:59&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-05T05:44:59&#x27;,
+  &#x27;email&#x27;: &#x27;hwcvufuzbl@test.com&#x27;,
+  &#x27;first_name&#x27;: &#x27;&#x27;,
+  &#x27;id&#x27;: 51,
+  &#x27;is_paying_customer&#x27;: False,
+  &#x27;last_name&#x27;: &#x27;&#x27;,
+  &#x27;meta_data&#x27;: [],
+  &#x27;role&#x27;: &#x27;customer&#x27;,
+  &#x27;shipping&#x27;: {&#x27;address_1&#x27;: &#x27;&#x27;,
+               &#x27;address_2&#x27;: &#x27;&#x27;,
+               &#x27;city&#x27;: &#x27;&#x27;,
+               &#x27;company&#x27;: &#x27;&#x27;,
+               &#x27;country&#x27;: &#x27;&#x27;,
+               &#x27;first_name&#x27;: &#x27;&#x27;,
+               &#x27;last_name&#x27;: &#x27;&#x27;,
+               &#x27;phone&#x27;: &#x27;&#x27;,
+               &#x27;postcode&#x27;: &#x27;&#x27;,
+               &#x27;state&#x27;: &#x27;&#x27;},
+  &#x27;username&#x27;: &#x27;ebgNJAFv&#x27;}]
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_get_customers.py:13 ***List All Customers***
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/customers , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_create_orders.py::test_createorders</td>
+          <td class="col-duration">4.69</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 114, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}]}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_create_orders.py::test_createorders_for_new_customer</td>
+          <td class="col-duration">5.53</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;username&#x27;: &#x27;hcIIIHqc&#x27;, &#x27;email&#x27;: &#x27;tvnfzifyqk@test.com&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/customers , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 114, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}], &#x27;customer_id&#x27;: 67}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_create_orders_with_coupons.py::test_creatorders_apply_coupons</td>
+          <td class="col-duration">0.73</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+[{&#x27;id&#x27;: 249,
+  &#x27;code&#x27;: &#x27;az_xmbgwbpsvroff&#x27;,
+  &#x27;amount&#x27;: &#x27;35.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:15&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:15&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:15&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:15&#x27;,
+  &#x27;discount_type&#x27;: &#x27;fixed_product&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/249&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 248,
+  &#x27;code&#x27;: &#x27;az_vvelzmbnlhoff&#x27;,
+  &#x27;amount&#x27;: &#x27;57.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:13&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:13&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:13&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:13&#x27;,
+  &#x27;discount_type&#x27;: &#x27;fixed_cart&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/248&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 247,
+  &#x27;code&#x27;: &#x27;az_vubqjpssyyoff&#x27;,
+  &#x27;amount&#x27;: &#x27;64.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:12&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:12&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:12&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:12&#x27;,
+  &#x27;discount_type&#x27;: &#x27;percent&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/247&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 246,
+  &#x27;code&#x27;: &#x27;az_mxowiskqpyoff&#x27;,
+  &#x27;amount&#x27;: &#x27;25.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:29:16&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:29:16&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:29:16&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:29:16&#x27;,
+  &#x27;discount_type&#x27;: &#x27;fixed_product&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/246&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 245,
+  &#x27;code&#x27;: &#x27;az_ikrmjippjcoff&#x27;,
+  &#x27;amount&#x27;: &#x27;95.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:29:14&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:29:14&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:29:14&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:29:14&#x27;,
+  &#x27;discount_type&#x27;: &#x27;fixed_cart&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/245&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 244,
+  &#x27;code&#x27;: &#x27;az_laxrdgbvszoff&#x27;,
+  &#x27;amount&#x27;: &#x27;74.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:29:12&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:29:12&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:29:12&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:29:12&#x27;,
+  &#x27;discount_type&#x27;: &#x27;percent&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/244&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 243,
+  &#x27;code&#x27;: &#x27;az_bvwavrongioff&#x27;,
+  &#x27;amount&#x27;: &#x27;22.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:23:53&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:23:53&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:23:53&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:23:53&#x27;,
+  &#x27;discount_type&#x27;: &#x27;fixed_product&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/243&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 242,
+  &#x27;code&#x27;: &#x27;az_yancmpirfeoff&#x27;,
+  &#x27;amount&#x27;: &#x27;22.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:23:51&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:23:51&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:23:51&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:23:51&#x27;,
+  &#x27;discount_type&#x27;: &#x27;fixed_cart&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/242&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 241,
+  &#x27;code&#x27;: &#x27;az_htifeapsgaoff&#x27;,
+  &#x27;amount&#x27;: &#x27;22.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:23:46&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:23:46&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:23:46&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:23:46&#x27;,
+  &#x27;discount_type&#x27;: &#x27;percent&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/241&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}},
+ {&#x27;id&#x27;: 240,
+  &#x27;code&#x27;: &#x27;22322offf&#x27;,
+  &#x27;amount&#x27;: &#x27;22.00&#x27;,
+  &#x27;status&#x27;: &#x27;publish&#x27;,
+  &#x27;date_created&#x27;: &#x27;2024-02-16T16:12:48&#x27;,
+  &#x27;date_created_gmt&#x27;: &#x27;2024-02-16T16:12:48&#x27;,
+  &#x27;date_modified&#x27;: &#x27;2024-02-16T16:12:48&#x27;,
+  &#x27;date_modified_gmt&#x27;: &#x27;2024-02-16T16:12:48&#x27;,
+  &#x27;discount_type&#x27;: &#x27;percent&#x27;,
+  &#x27;description&#x27;: &#x27;&#x27;,
+  &#x27;date_expires&#x27;: None,
+  &#x27;date_expires_gmt&#x27;: None,
+  &#x27;usage_count&#x27;: 0,
+  &#x27;individual_use&#x27;: True,
+  &#x27;product_ids&#x27;: [],
+  &#x27;excluded_product_ids&#x27;: [],
+  &#x27;usage_limit&#x27;: None,
+  &#x27;usage_limit_per_user&#x27;: None,
+  &#x27;limit_usage_to_x_items&#x27;: None,
+  &#x27;free_shipping&#x27;: False,
+  &#x27;product_categories&#x27;: [],
+  &#x27;excluded_product_categories&#x27;: [],
+  &#x27;exclude_sale_items&#x27;: True,
+  &#x27;minimum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;maximum_amount&#x27;: &#x27;0.00&#x27;,
+  &#x27;email_restrictions&#x27;: [],
+  &#x27;used_by&#x27;: [],
+  &#x27;meta_data&#x27;: [],
+  &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons/240&#x27;}],
+             &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/coupons&#x27;}]}}]
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/coupons , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_update_orders.py::test_update_order_status[pending]</td>
+          <td class="col-duration">4.22</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API STATUS Code : 200
+{&#x27;id&#x27;: 252,
+ &#x27;parent_id&#x27;: 0,
+ &#x27;status&#x27;: &#x27;pending&#x27;,
+ &#x27;currency&#x27;: &#x27;USD&#x27;,
+ &#x27;version&#x27;: &#x27;8.5.2&#x27;,
+ &#x27;prices_include_tax&#x27;: False,
+ &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:34&#x27;,
+ &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:37&#x27;,
+ &#x27;discount_total&#x27;: &#x27;0.00&#x27;,
+ &#x27;discount_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;shipping_total&#x27;: &#x27;10.00&#x27;,
+ &#x27;shipping_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;cart_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;total&#x27;: &#x27;10.00&#x27;,
+ &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;customer_id&#x27;: 0,
+ &#x27;order_key&#x27;: &#x27;wc_order_mfta5qPypc9fB&#x27;,
+ &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;,
+             &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+             &#x27;company&#x27;: &#x27;&#x27;,
+             &#x27;address_1&#x27;: &#x27;969 Market&#x27;,
+             &#x27;address_2&#x27;: &#x27;&#x27;,
+             &#x27;city&#x27;: &#x27;San Francisco&#x27;,
+             &#x27;state&#x27;: &#x27;CA&#x27;,
+             &#x27;postcode&#x27;: &#x27;94103&#x27;,
+             &#x27;country&#x27;: &#x27;US&#x27;,
+             &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;,
+             &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;},
+ &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;,
+              &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;address_1&#x27;: &#x27;969 Market&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;San Francisco&#x27;,
+              &#x27;state&#x27;: &#x27;CA&#x27;,
+              &#x27;postcode&#x27;: &#x27;94103&#x27;,
+              &#x27;country&#x27;: &#x27;US&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;},
+ &#x27;payment_method&#x27;: &#x27;bacs&#x27;,
+ &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;,
+ &#x27;transaction_id&#x27;: &#x27;&#x27;,
+ &#x27;customer_ip_address&#x27;: &#x27;&#x27;,
+ &#x27;customer_user_agent&#x27;: &#x27;&#x27;,
+ &#x27;created_via&#x27;: &#x27;rest-api&#x27;,
+ &#x27;customer_note&#x27;: &#x27;&#x27;,
+ &#x27;date_completed&#x27;: &#x27;2024-02-19T09:07:35&#x27;,
+ &#x27;date_paid&#x27;: &#x27;2024-02-19T09:07:35&#x27;,
+ &#x27;cart_hash&#x27;: &#x27;&#x27;,
+ &#x27;number&#x27;: &#x27;252&#x27;,
+ &#x27;meta_data&#x27;: [],
+ &#x27;line_items&#x27;: [{&#x27;id&#x27;: 290,
+                 &#x27;name&#x27;: &#x27;&#x27;,
+                 &#x27;product_id&#x27;: 0,
+                 &#x27;variation_id&#x27;: 0,
+                 &#x27;quantity&#x27;: 2,
+                 &#x27;tax_class&#x27;: &#x27;&#x27;,
+                 &#x27;subtotal&#x27;: &#x27;0.00&#x27;,
+                 &#x27;subtotal_tax&#x27;: &#x27;0.00&#x27;,
+                 &#x27;total&#x27;: &#x27;0.00&#x27;,
+                 &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+                 &#x27;taxes&#x27;: [],
+                 &#x27;meta_data&#x27;: [],
+                 &#x27;sku&#x27;: None,
+                 &#x27;price&#x27;: 0,
+                 &#x27;image&#x27;: {&#x27;id&#x27;: 0, &#x27;src&#x27;: &#x27;&#x27;},
+                 &#x27;parent_name&#x27;: None}],
+ &#x27;tax_lines&#x27;: [],
+ &#x27;shipping_lines&#x27;: [{&#x27;id&#x27;: 291,
+                     &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;,
+                     &#x27;method_id&#x27;: &#x27;flat_rate&#x27;,
+                     &#x27;instance_id&#x27;: &#x27;&#x27;,
+                     &#x27;total&#x27;: &#x27;10.00&#x27;,
+                     &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+                     &#x27;taxes&#x27;: [],
+                     &#x27;meta_data&#x27;: []}],
+ &#x27;fee_lines&#x27;: [],
+ &#x27;coupon_lines&#x27;: [],
+ &#x27;refunds&#x27;: [],
+ &#x27;payment_url&#x27;: &#x27;http://localhost:10004/checkout/order-pay/252/?pay_for_order=true&amp;key=wc_order_mfta5qPypc9fB&#x27;,
+ &#x27;is_editable&#x27;: True,
+ &#x27;needs_payment&#x27;: True,
+ &#x27;needs_processing&#x27;: False,
+ &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:34&#x27;,
+ &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:37&#x27;,
+ &#x27;date_completed_gmt&#x27;: &#x27;2024-02-19T09:07:35&#x27;,
+ &#x27;date_paid_gmt&#x27;: &#x27;2024-02-19T09:07:35&#x27;,
+ &#x27;currency_symbol&#x27;: &#x27;$&#x27;,
+ &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/orders/252&#x27;}],
+            &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/orders&#x27;}]}}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 93, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}]}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;status&#x27;: &#x27;pending&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders/252 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_update_orders.py::test_update_order_status[processing]</td>
+          <td class="col-duration">4.19</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API STATUS Code : 200
+{&#x27;id&#x27;: 253,
+ &#x27;parent_id&#x27;: 0,
+ &#x27;status&#x27;: &#x27;processing&#x27;,
+ &#x27;currency&#x27;: &#x27;USD&#x27;,
+ &#x27;version&#x27;: &#x27;8.5.2&#x27;,
+ &#x27;prices_include_tax&#x27;: False,
+ &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:38&#x27;,
+ &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:41&#x27;,
+ &#x27;discount_total&#x27;: &#x27;0.00&#x27;,
+ &#x27;discount_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;shipping_total&#x27;: &#x27;10.00&#x27;,
+ &#x27;shipping_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;cart_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;total&#x27;: &#x27;10.00&#x27;,
+ &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;customer_id&#x27;: 0,
+ &#x27;order_key&#x27;: &#x27;wc_order_TLhJ4uHBtzlzD&#x27;,
+ &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;,
+             &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+             &#x27;company&#x27;: &#x27;&#x27;,
+             &#x27;address_1&#x27;: &#x27;969 Market&#x27;,
+             &#x27;address_2&#x27;: &#x27;&#x27;,
+             &#x27;city&#x27;: &#x27;San Francisco&#x27;,
+             &#x27;state&#x27;: &#x27;CA&#x27;,
+             &#x27;postcode&#x27;: &#x27;94103&#x27;,
+             &#x27;country&#x27;: &#x27;US&#x27;,
+             &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;,
+             &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;},
+ &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;,
+              &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;address_1&#x27;: &#x27;969 Market&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;San Francisco&#x27;,
+              &#x27;state&#x27;: &#x27;CA&#x27;,
+              &#x27;postcode&#x27;: &#x27;94103&#x27;,
+              &#x27;country&#x27;: &#x27;US&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;},
+ &#x27;payment_method&#x27;: &#x27;bacs&#x27;,
+ &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;,
+ &#x27;transaction_id&#x27;: &#x27;&#x27;,
+ &#x27;customer_ip_address&#x27;: &#x27;&#x27;,
+ &#x27;customer_user_agent&#x27;: &#x27;&#x27;,
+ &#x27;created_via&#x27;: &#x27;rest-api&#x27;,
+ &#x27;customer_note&#x27;: &#x27;&#x27;,
+ &#x27;date_completed&#x27;: &#x27;2024-02-19T09:07:40&#x27;,
+ &#x27;date_paid&#x27;: &#x27;2024-02-19T09:07:40&#x27;,
+ &#x27;cart_hash&#x27;: &#x27;&#x27;,
+ &#x27;number&#x27;: &#x27;253&#x27;,
+ &#x27;meta_data&#x27;: [],
+ &#x27;line_items&#x27;: [{&#x27;id&#x27;: 292,
+                 &#x27;name&#x27;: &#x27;&#x27;,
+                 &#x27;product_id&#x27;: 0,
+                 &#x27;variation_id&#x27;: 0,
+                 &#x27;quantity&#x27;: 2,
+                 &#x27;tax_class&#x27;: &#x27;&#x27;,
+                 &#x27;subtotal&#x27;: &#x27;0.00&#x27;,
+                 &#x27;subtotal_tax&#x27;: &#x27;0.00&#x27;,
+                 &#x27;total&#x27;: &#x27;0.00&#x27;,
+                 &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+                 &#x27;taxes&#x27;: [],
+                 &#x27;meta_data&#x27;: [],
+                 &#x27;sku&#x27;: None,
+                 &#x27;price&#x27;: 0,
+                 &#x27;image&#x27;: {&#x27;id&#x27;: 0, &#x27;src&#x27;: &#x27;&#x27;},
+                 &#x27;parent_name&#x27;: None}],
+ &#x27;tax_lines&#x27;: [],
+ &#x27;shipping_lines&#x27;: [{&#x27;id&#x27;: 293,
+                     &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;,
+                     &#x27;method_id&#x27;: &#x27;flat_rate&#x27;,
+                     &#x27;instance_id&#x27;: &#x27;&#x27;,
+                     &#x27;total&#x27;: &#x27;10.00&#x27;,
+                     &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+                     &#x27;taxes&#x27;: [],
+                     &#x27;meta_data&#x27;: []}],
+ &#x27;fee_lines&#x27;: [],
+ &#x27;coupon_lines&#x27;: [],
+ &#x27;refunds&#x27;: [],
+ &#x27;payment_url&#x27;: &#x27;http://localhost:10004/checkout/order-pay/253/?pay_for_order=true&amp;key=wc_order_TLhJ4uHBtzlzD&#x27;,
+ &#x27;is_editable&#x27;: False,
+ &#x27;needs_payment&#x27;: False,
+ &#x27;needs_processing&#x27;: False,
+ &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:38&#x27;,
+ &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:41&#x27;,
+ &#x27;date_completed_gmt&#x27;: &#x27;2024-02-19T09:07:40&#x27;,
+ &#x27;date_paid_gmt&#x27;: &#x27;2024-02-19T09:07:40&#x27;,
+ &#x27;currency_symbol&#x27;: &#x27;$&#x27;,
+ &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/orders/253&#x27;}],
+            &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/orders&#x27;}]}}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 93, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}]}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;status&#x27;: &#x27;processing&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders/253 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_update_orders.py::test_update_order_status[cancelled]</td>
+          <td class="col-duration">5.04</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API STATUS Code : 200
+{&#x27;id&#x27;: 254,
+ &#x27;parent_id&#x27;: 0,
+ &#x27;status&#x27;: &#x27;cancelled&#x27;,
+ &#x27;currency&#x27;: &#x27;USD&#x27;,
+ &#x27;version&#x27;: &#x27;8.5.2&#x27;,
+ &#x27;prices_include_tax&#x27;: False,
+ &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:42&#x27;,
+ &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:46&#x27;,
+ &#x27;discount_total&#x27;: &#x27;0.00&#x27;,
+ &#x27;discount_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;shipping_total&#x27;: &#x27;10.00&#x27;,
+ &#x27;shipping_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;cart_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;total&#x27;: &#x27;10.00&#x27;,
+ &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+ &#x27;customer_id&#x27;: 0,
+ &#x27;order_key&#x27;: &#x27;wc_order_4unS5HKOFijvh&#x27;,
+ &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;,
+             &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+             &#x27;company&#x27;: &#x27;&#x27;,
+             &#x27;address_1&#x27;: &#x27;969 Market&#x27;,
+             &#x27;address_2&#x27;: &#x27;&#x27;,
+             &#x27;city&#x27;: &#x27;San Francisco&#x27;,
+             &#x27;state&#x27;: &#x27;CA&#x27;,
+             &#x27;postcode&#x27;: &#x27;94103&#x27;,
+             &#x27;country&#x27;: &#x27;US&#x27;,
+             &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;,
+             &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;},
+ &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;,
+              &#x27;last_name&#x27;: &#x27;Doe&#x27;,
+              &#x27;company&#x27;: &#x27;&#x27;,
+              &#x27;address_1&#x27;: &#x27;969 Market&#x27;,
+              &#x27;address_2&#x27;: &#x27;&#x27;,
+              &#x27;city&#x27;: &#x27;San Francisco&#x27;,
+              &#x27;state&#x27;: &#x27;CA&#x27;,
+              &#x27;postcode&#x27;: &#x27;94103&#x27;,
+              &#x27;country&#x27;: &#x27;US&#x27;,
+              &#x27;phone&#x27;: &#x27;&#x27;},
+ &#x27;payment_method&#x27;: &#x27;bacs&#x27;,
+ &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;,
+ &#x27;transaction_id&#x27;: &#x27;&#x27;,
+ &#x27;customer_ip_address&#x27;: &#x27;&#x27;,
+ &#x27;customer_user_agent&#x27;: &#x27;&#x27;,
+ &#x27;created_via&#x27;: &#x27;rest-api&#x27;,
+ &#x27;customer_note&#x27;: &#x27;&#x27;,
+ &#x27;date_completed&#x27;: &#x27;2024-02-19T09:07:43&#x27;,
+ &#x27;date_paid&#x27;: &#x27;2024-02-19T09:07:43&#x27;,
+ &#x27;cart_hash&#x27;: &#x27;&#x27;,
+ &#x27;number&#x27;: &#x27;254&#x27;,
+ &#x27;meta_data&#x27;: [],
+ &#x27;line_items&#x27;: [{&#x27;id&#x27;: 294,
+                 &#x27;name&#x27;: &#x27;&#x27;,
+                 &#x27;product_id&#x27;: 0,
+                 &#x27;variation_id&#x27;: 0,
+                 &#x27;quantity&#x27;: 2,
+                 &#x27;tax_class&#x27;: &#x27;&#x27;,
+                 &#x27;subtotal&#x27;: &#x27;0.00&#x27;,
+                 &#x27;subtotal_tax&#x27;: &#x27;0.00&#x27;,
+                 &#x27;total&#x27;: &#x27;0.00&#x27;,
+                 &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+                 &#x27;taxes&#x27;: [],
+                 &#x27;meta_data&#x27;: [],
+                 &#x27;sku&#x27;: None,
+                 &#x27;price&#x27;: 0,
+                 &#x27;image&#x27;: {&#x27;id&#x27;: 0, &#x27;src&#x27;: &#x27;&#x27;},
+                 &#x27;parent_name&#x27;: None}],
+ &#x27;tax_lines&#x27;: [],
+ &#x27;shipping_lines&#x27;: [{&#x27;id&#x27;: 295,
+                     &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;,
+                     &#x27;method_id&#x27;: &#x27;flat_rate&#x27;,
+                     &#x27;instance_id&#x27;: &#x27;&#x27;,
+                     &#x27;total&#x27;: &#x27;10.00&#x27;,
+                     &#x27;total_tax&#x27;: &#x27;0.00&#x27;,
+                     &#x27;taxes&#x27;: [],
+                     &#x27;meta_data&#x27;: []}],
+ &#x27;fee_lines&#x27;: [],
+ &#x27;coupon_lines&#x27;: [],
+ &#x27;refunds&#x27;: [],
+ &#x27;payment_url&#x27;: &#x27;http://localhost:10004/checkout/order-pay/254/?pay_for_order=true&amp;key=wc_order_4unS5HKOFijvh&#x27;,
+ &#x27;is_editable&#x27;: False,
+ &#x27;needs_payment&#x27;: False,
+ &#x27;needs_processing&#x27;: False,
+ &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:42&#x27;,
+ &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:46&#x27;,
+ &#x27;date_completed_gmt&#x27;: &#x27;2024-02-19T09:07:43&#x27;,
+ &#x27;date_paid_gmt&#x27;: &#x27;2024-02-19T09:07:43&#x27;,
+ &#x27;currency_symbol&#x27;: &#x27;$&#x27;,
+ &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/orders/254&#x27;}],
+            &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/orders&#x27;}]}}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 93, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}]}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;status&#x27;: &#x27;cancelled&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders/254 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_update_orders.py::test_update_order_status_with_invalid_status</td>
+          <td class="col-duration">3.85</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API STATUS Code : 400
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 93, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}]}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;status&#x27;: &#x27;inprocess&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders/255 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Orders/test_update_orders.py::test_update_order_customer_note</td>
+          <td class="col-duration">4.16</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API STATUS Code : 200
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;payment_method&#x27;: &#x27;bacs&#x27;, &#x27;payment_method_title&#x27;: &#x27;Direct Bank Transfer&#x27;, &#x27;set_paid&#x27;: &#x27;True&#x27;, &#x27;billing&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;, &#x27;email&#x27;: &#x27;john.doe@example.com&#x27;, &#x27;phone&#x27;: &#x27;(555) 555-5555&#x27;}, &#x27;shipping&#x27;: {&#x27;first_name&#x27;: &#x27;John&#x27;, &#x27;last_name&#x27;: &#x27;Doe&#x27;, &#x27;address_1&#x27;: &#x27;969 Market&#x27;, &#x27;address_2&#x27;: &#x27;&#x27;, &#x27;city&#x27;: &#x27;San Francisco&#x27;, &#x27;state&#x27;: &#x27;CA&#x27;, &#x27;postcode&#x27;: &#x27;94103&#x27;, &#x27;country&#x27;: &#x27;US&#x27;}, &#x27;line_items&#x27;: [{&#x27;product_id&#x27;: 93, &#x27;quantity&#x27;: 2}], &#x27;shipping_lines&#x27;: [{&#x27;method_id&#x27;: &#x27;flat_rate&#x27;, &#x27;method_title&#x27;: &#x27;Flat Rate&#x27;, &#x27;total&#x27;: &#x27;10.00&#x27;}]}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;customer_note&#x27;: &#x27;az_vvjetliujf&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/orders/256 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Products/test_create_products.py::test_create_single_product</td>
+          <td class="col-duration">3.02</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>{&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/products&#x27;}],
+            &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/products/257&#x27;}]},
+ &#x27;attributes&#x27;: [],
+ &#x27;average_rating&#x27;: &#x27;0&#x27;,
+ &#x27;backordered&#x27;: False,
+ &#x27;backorders&#x27;: &#x27;no&#x27;,
+ &#x27;backorders_allowed&#x27;: False,
+ &#x27;button_text&#x27;: &#x27;&#x27;,
+ &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;,
+ &#x27;categories&#x27;: [{&#x27;id&#x27;: 16, &#x27;name&#x27;: &#x27;Uncategorized&#x27;, &#x27;slug&#x27;: &#x27;uncategorized&#x27;}],
+ &#x27;cross_sell_ids&#x27;: [],
+ &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:55&#x27;,
+ &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:55&#x27;,
+ &#x27;date_modified&#x27;: &#x27;2024-02-19T09:07:55&#x27;,
+ &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:07:55&#x27;,
+ &#x27;date_on_sale_from&#x27;: None,
+ &#x27;date_on_sale_from_gmt&#x27;: None,
+ &#x27;date_on_sale_to&#x27;: None,
+ &#x27;date_on_sale_to_gmt&#x27;: None,
+ &#x27;default_attributes&#x27;: [],
+ &#x27;description&#x27;: &#x27;&#x27;,
+ &#x27;dimensions&#x27;: {&#x27;height&#x27;: &#x27;&#x27;, &#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;},
+ &#x27;download_expiry&#x27;: -1,
+ &#x27;download_limit&#x27;: -1,
+ &#x27;downloadable&#x27;: False,
+ &#x27;downloads&#x27;: [],
+ &#x27;external_url&#x27;: &#x27;&#x27;,
+ &#x27;featured&#x27;: False,
+ &#x27;generated_slug&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+ &#x27;grouped_products&#x27;: [],
+ &#x27;has_options&#x27;: False,
+ &#x27;id&#x27;: 257,
+ &#x27;images&#x27;: [],
+ &#x27;jetpack_sharing_enabled&#x27;: True,
+ &#x27;low_stock_amount&#x27;: None,
+ &#x27;manage_stock&#x27;: False,
+ &#x27;menu_order&#x27;: 0,
+ &#x27;meta_data&#x27;: [],
+ &#x27;name&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+ &#x27;on_sale&#x27;: False,
+ &#x27;parent_id&#x27;: 0,
+ &#x27;permalink&#x27;: &#x27;http://localhost:10004/product/az_xjlzxgpfuq/&#x27;,
+ &#x27;permalink_template&#x27;: &#x27;http://localhost:10004/product/%pagename%/&#x27;,
+ &#x27;post_password&#x27;: &#x27;&#x27;,
+ &#x27;price&#x27;: &#x27;21.36&#x27;,
+ &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span &#x27;
+               &#x27;class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#36;&lt;/span&gt;21.36&lt;/bdi&gt;&lt;/span&gt;&#x27;,
+ &#x27;purchasable&#x27;: True,
+ &#x27;purchase_note&#x27;: &#x27;&#x27;,
+ &#x27;rating_count&#x27;: 0,
+ &#x27;regular_price&#x27;: &#x27;21.36&#x27;,
+ &#x27;related_ids&#x27;: [83, 70, 72, 73, 65],
+ &#x27;reviews_allowed&#x27;: True,
+ &#x27;sale_price&#x27;: &#x27;&#x27;,
+ &#x27;shipping_class&#x27;: &#x27;&#x27;,
+ &#x27;shipping_class_id&#x27;: 0,
+ &#x27;shipping_required&#x27;: True,
+ &#x27;shipping_taxable&#x27;: True,
+ &#x27;short_description&#x27;: &#x27;&#x27;,
+ &#x27;sku&#x27;: &#x27;&#x27;,
+ &#x27;slug&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+ &#x27;sold_individually&#x27;: False,
+ &#x27;status&#x27;: &#x27;publish&#x27;,
+ &#x27;stock_quantity&#x27;: None,
+ &#x27;stock_status&#x27;: &#x27;instock&#x27;,
+ &#x27;tags&#x27;: [],
+ &#x27;tax_class&#x27;: &#x27;&#x27;,
+ &#x27;tax_status&#x27;: &#x27;taxable&#x27;,
+ &#x27;total_sales&#x27;: 0,
+ &#x27;type&#x27;: &#x27;simple&#x27;,
+ &#x27;upsell_ids&#x27;: [],
+ &#x27;variations&#x27;: [],
+ &#x27;virtual&#x27;: False,
+ &#x27;weight&#x27;: &#x27;&#x27;}
+[{&#x27;ID&#x27;: 257,
+  &#x27;comment_count&#x27;: 0,
+  &#x27;comment_status&#x27;: &#x27;open&#x27;,
+  &#x27;guid&#x27;: &#x27;http://localhost:10004/product/az_xjlzxgpfuq/&#x27;,
+  &#x27;menu_order&#x27;: 0,
+  &#x27;ping_status&#x27;: &#x27;closed&#x27;,
+  &#x27;pinged&#x27;: &#x27;&#x27;,
+  &#x27;post_author&#x27;: 1,
+  &#x27;post_content&#x27;: &#x27;&#x27;,
+  &#x27;post_content_filtered&#x27;: &#x27;&#x27;,
+  &#x27;post_date&#x27;: datetime.datetime(2024, 2, 19, 9, 7, 55),
+  &#x27;post_date_gmt&#x27;: datetime.datetime(2024, 2, 19, 9, 7, 55),
+  &#x27;post_excerpt&#x27;: &#x27;&#x27;,
+  &#x27;post_mime_type&#x27;: &#x27;&#x27;,
+  &#x27;post_modified&#x27;: datetime.datetime(2024, 2, 19, 9, 7, 55),
+  &#x27;post_modified_gmt&#x27;: datetime.datetime(2024, 2, 19, 9, 7, 55),
+  &#x27;post_name&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+  &#x27;post_parent&#x27;: 0,
+  &#x27;post_password&#x27;: &#x27;&#x27;,
+  &#x27;post_status&#x27;: &#x27;publish&#x27;,
+  &#x27;post_title&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+  &#x27;post_type&#x27;: &#x27;product&#x27;,
+  &#x27;to_ping&#x27;: &#x27;&#x27;}]
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_create_products.py:13 ***Create Single Product in Store***
+[32mINFO    [0m root:RequestUtilities.py:30 Payload = {&#x27;name&#x27;: &#x27;az_xjlzxgpfuq&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;regular_price&#x27;: &#x27;21.36&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:31 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Products/test_get_products.py::test_list_all_products</td>
+          <td class="col-duration">9.90</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_get_products.py:11 ***List All products***
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Products/test_get_products.py::test_get_product_by_id</td>
+          <td class="col-duration">0.61</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+RES ID  : 135
+{&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/products&#x27;}],
+            &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/products/135&#x27;}]},
+ &#x27;attributes&#x27;: [],
+ &#x27;average_rating&#x27;: &#x27;0.00&#x27;,
+ &#x27;backordered&#x27;: False,
+ &#x27;backorders&#x27;: &#x27;no&#x27;,
+ &#x27;backorders_allowed&#x27;: False,
+ &#x27;button_text&#x27;: &#x27;&#x27;,
+ &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;,
+ &#x27;categories&#x27;: [{&#x27;id&#x27;: 16, &#x27;name&#x27;: &#x27;Uncategorized&#x27;, &#x27;slug&#x27;: &#x27;uncategorized&#x27;}],
+ &#x27;cross_sell_ids&#x27;: [],
+ &#x27;date_created&#x27;: &#x27;2024-02-09T16:34:58&#x27;,
+ &#x27;date_created_gmt&#x27;: &#x27;2024-02-09T16:34:58&#x27;,
+ &#x27;date_modified&#x27;: &#x27;2024-02-14T10:31:18&#x27;,
+ &#x27;date_modified_gmt&#x27;: &#x27;2024-02-14T10:31:18&#x27;,
+ &#x27;date_on_sale_from&#x27;: None,
+ &#x27;date_on_sale_from_gmt&#x27;: None,
+ &#x27;date_on_sale_to&#x27;: None,
+ &#x27;date_on_sale_to_gmt&#x27;: None,
+ &#x27;default_attributes&#x27;: [],
+ &#x27;description&#x27;: &#x27;&#x27;,
+ &#x27;dimensions&#x27;: {&#x27;height&#x27;: &#x27;&#x27;, &#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;},
+ &#x27;download_expiry&#x27;: -1,
+ &#x27;download_limit&#x27;: -1,
+ &#x27;downloadable&#x27;: False,
+ &#x27;downloads&#x27;: [],
+ &#x27;external_url&#x27;: &#x27;&#x27;,
+ &#x27;featured&#x27;: False,
+ &#x27;grouped_products&#x27;: [],
+ &#x27;has_options&#x27;: False,
+ &#x27;id&#x27;: 135,
+ &#x27;images&#x27;: [],
+ &#x27;jetpack_sharing_enabled&#x27;: True,
+ &#x27;low_stock_amount&#x27;: None,
+ &#x27;manage_stock&#x27;: False,
+ &#x27;menu_order&#x27;: 0,
+ &#x27;meta_data&#x27;: [],
+ &#x27;name&#x27;: &#x27;Product&#x27;,
+ &#x27;on_sale&#x27;: True,
+ &#x27;parent_id&#x27;: 0,
+ &#x27;permalink&#x27;: &#x27;http://localhost:10004/product/product-13/&#x27;,
+ &#x27;post_password&#x27;: &#x27;&#x27;,
+ &#x27;price&#x27;: &#x27;10.99&#x27;,
+ &#x27;price_html&#x27;: &#x27;&lt;del aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;woocommerce-Price-amount &#x27;
+               &#x27;amount&quot;&gt;&lt;bdi&gt;&lt;span &#x27;
+               &#x27;class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#36;&lt;/span&gt;83.89&lt;/bdi&gt;&lt;/span&gt;&lt;/del&gt; &#x27;
+               &#x27;&lt;ins&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span &#x27;
+               &#x27;class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#36;&lt;/span&gt;10.99&lt;/bdi&gt;&lt;/span&gt;&lt;/ins&gt;&#x27;,
+ &#x27;purchasable&#x27;: True,
+ &#x27;purchase_note&#x27;: &#x27;&#x27;,
+ &#x27;rating_count&#x27;: 0,
+ &#x27;regular_price&#x27;: &#x27;83.89&#x27;,
+ &#x27;related_ids&#x27;: [66, 81, 88, 76, 65],
+ &#x27;reviews_allowed&#x27;: True,
+ &#x27;sale_price&#x27;: &#x27;10.99&#x27;,
+ &#x27;shipping_class&#x27;: &#x27;&#x27;,
+ &#x27;shipping_class_id&#x27;: 0,
+ &#x27;shipping_required&#x27;: True,
+ &#x27;shipping_taxable&#x27;: True,
+ &#x27;short_description&#x27;: &#x27;&#x27;,
+ &#x27;sku&#x27;: &#x27;&#x27;,
+ &#x27;slug&#x27;: &#x27;product-13&#x27;,
+ &#x27;sold_individually&#x27;: False,
+ &#x27;status&#x27;: &#x27;publish&#x27;,
+ &#x27;stock_quantity&#x27;: None,
+ &#x27;stock_status&#x27;: &#x27;instock&#x27;,
+ &#x27;tags&#x27;: [],
+ &#x27;tax_class&#x27;: &#x27;&#x27;,
+ &#x27;tax_status&#x27;: &#x27;taxable&#x27;,
+ &#x27;total_sales&#x27;: 2,
+ &#x27;type&#x27;: &#x27;simple&#x27;,
+ &#x27;upsell_ids&#x27;: [],
+ &#x27;variations&#x27;: [],
+ &#x27;virtual&#x27;: False,
+ &#x27;weight&#x27;: &#x27;&#x27;}
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:test_get_products.py:19 ***List Product by ID****
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products/135 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Products/test_get_products_using_filter.py::Test_getproductsfilter::test_get_products_by_filter_after</td>
+          <td class="col-duration">34.06</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+API Respose code : 200
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Products/test_update_products.py::test_update_product_price</td>
+          <td class="col-duration">6.71</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API STATUS Code : 200
+{&#x27;_links&#x27;: {&#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/products&#x27;}],
+            &#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:10004/wp-json/wc/v3/products/257&#x27;}]},
+ &#x27;attributes&#x27;: [],
+ &#x27;average_rating&#x27;: &#x27;0&#x27;,
+ &#x27;backordered&#x27;: False,
+ &#x27;backorders&#x27;: &#x27;no&#x27;,
+ &#x27;backorders_allowed&#x27;: False,
+ &#x27;button_text&#x27;: &#x27;&#x27;,
+ &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;,
+ &#x27;categories&#x27;: [{&#x27;id&#x27;: 16, &#x27;name&#x27;: &#x27;Uncategorized&#x27;, &#x27;slug&#x27;: &#x27;uncategorized&#x27;}],
+ &#x27;cross_sell_ids&#x27;: [],
+ &#x27;date_created&#x27;: &#x27;2024-02-19T09:07:55&#x27;,
+ &#x27;date_created_gmt&#x27;: &#x27;2024-02-19T09:07:55&#x27;,
+ &#x27;date_modified&#x27;: &#x27;2024-02-19T09:08:49&#x27;,
+ &#x27;date_modified_gmt&#x27;: &#x27;2024-02-19T09:08:49&#x27;,
+ &#x27;date_on_sale_from&#x27;: None,
+ &#x27;date_on_sale_from_gmt&#x27;: None,
+ &#x27;date_on_sale_to&#x27;: None,
+ &#x27;date_on_sale_to_gmt&#x27;: None,
+ &#x27;default_attributes&#x27;: [],
+ &#x27;description&#x27;: &#x27;&#x27;,
+ &#x27;dimensions&#x27;: {&#x27;height&#x27;: &#x27;&#x27;, &#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;},
+ &#x27;download_expiry&#x27;: -1,
+ &#x27;download_limit&#x27;: -1,
+ &#x27;downloadable&#x27;: False,
+ &#x27;downloads&#x27;: [],
+ &#x27;external_url&#x27;: &#x27;&#x27;,
+ &#x27;featured&#x27;: False,
+ &#x27;generated_slug&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+ &#x27;grouped_products&#x27;: [],
+ &#x27;has_options&#x27;: False,
+ &#x27;id&#x27;: 257,
+ &#x27;images&#x27;: [],
+ &#x27;jetpack_sharing_enabled&#x27;: True,
+ &#x27;low_stock_amount&#x27;: None,
+ &#x27;manage_stock&#x27;: False,
+ &#x27;menu_order&#x27;: 0,
+ &#x27;meta_data&#x27;: [],
+ &#x27;name&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+ &#x27;on_sale&#x27;: False,
+ &#x27;parent_id&#x27;: 0,
+ &#x27;permalink&#x27;: &#x27;http://localhost:10004/product/az_xjlzxgpfuq/&#x27;,
+ &#x27;permalink_template&#x27;: &#x27;http://localhost:10004/product/%pagename%/&#x27;,
+ &#x27;post_password&#x27;: &#x27;&#x27;,
+ &#x27;price&#x27;: &#x27;29.98&#x27;,
+ &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span &#x27;
+               &#x27;class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#36;&lt;/span&gt;29.98&lt;/bdi&gt;&lt;/span&gt;&#x27;,
+ &#x27;purchasable&#x27;: True,
+ &#x27;purchase_note&#x27;: &#x27;&#x27;,
+ &#x27;rating_count&#x27;: 0,
+ &#x27;regular_price&#x27;: &#x27;29.98&#x27;,
+ &#x27;related_ids&#x27;: [87, 69, 73, 75, 85],
+ &#x27;reviews_allowed&#x27;: True,
+ &#x27;sale_price&#x27;: &#x27;&#x27;,
+ &#x27;shipping_class&#x27;: &#x27;&#x27;,
+ &#x27;shipping_class_id&#x27;: 0,
+ &#x27;shipping_required&#x27;: True,
+ &#x27;shipping_taxable&#x27;: True,
+ &#x27;short_description&#x27;: &#x27;&#x27;,
+ &#x27;sku&#x27;: &#x27;&#x27;,
+ &#x27;slug&#x27;: &#x27;az_xjlzxgpfuq&#x27;,
+ &#x27;sold_individually&#x27;: False,
+ &#x27;status&#x27;: &#x27;publish&#x27;,
+ &#x27;stock_quantity&#x27;: None,
+ &#x27;stock_status&#x27;: &#x27;instock&#x27;,
+ &#x27;tags&#x27;: [],
+ &#x27;tax_class&#x27;: &#x27;&#x27;,
+ &#x27;tax_status&#x27;: &#x27;taxable&#x27;,
+ &#x27;total_sales&#x27;: 0,
+ &#x27;type&#x27;: &#x27;simple&#x27;,
+ &#x27;upsell_ids&#x27;: [],
+ &#x27;variations&#x27;: [],
+ &#x27;virtual&#x27;: False,
+ &#x27;weight&#x27;: &#x27;&#x27;}
+current price : 21.36 is updated to 29.98
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products/257 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;regular_price&#x27;: &#x27;29.98&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products/257 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">TestCases/Products/test_update_products.py::test_update_product_on_sale</td>
+          <td class="col-duration">7.98</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> ------------------------------Captured stdout call------------------------------ <br/>API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+API Respose code : 200
+False
+API STATUS Code : 200
+On Sale : True, Sale_price : 10.99 
+API STATUS Code : 200
+On Sale : False, Sale_price :  
+<br/> -------------------------------Captured log call-------------------------------- <br/>[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:45 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products/257 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;sale_price&#x27;: &#x27;10.99&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products/257 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6 
+[32mINFO    [0m root:RequestUtilities.py:69 Payload = {&#x27;sale_price&#x27;: &#x27;&#x27;}
+[32mINFO    [0m root:RequestUtilities.py:70 BaseUrl =  http://localhost:10004/wp-json/wc/v3/products/257 , consumerkey = ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13 , consumer_secret = cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6<br/></div></td></tr></tbody></table></body></html>

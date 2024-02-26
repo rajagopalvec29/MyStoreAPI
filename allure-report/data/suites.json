@@ -1,0 +1,39 @@
+{
+  "uid" : "98d3104e051c652961429bf95fa0b5d6",
+  "name" : "suites",
+  "children" : [ {
+    "name" : "TestCases.Coupons",
+    "children" : [ {
+      "name" : "test_create_coupon",
+      "children" : [ {
+        "name" : "test_create_coupons[fixed_product]",
+        "uid" : "2e7d5b76fe75c189",
+        "parentUid" : "28ab0837c922ed28f814c6ee53f831ca",
+        "status" : "passed",
+        "time" : {
+          "start" : 1708344080891,
+          "stop" : 1708344082895,
+          "duration" : 2004
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "'fixed_product'" ]
+      }, {
+        "name" : "test_create_coupons[fixed_cart]",
+        "uid" : "69df1f06635929ce",
+        "parentUid" : "28ab0837c922ed28f814c6ee53f831ca",
+        "status" : "passed",
+        "time" : {
+          "start" : 1708344229844,
+          "stop" : 1708344232548,
+          "duration" : 2704
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "'fixed_cart'" ]
+      } ],
+      "uid" : "28ab0837c922ed28f814c6ee53f831ca"
+    } ],
+    "uid" : "0a4cb63ed34a8b91416dcfc895eb44a8"
+  } ]
+}

@@ -1,0 +1,13 @@
+
+
+
+SET MACHINE=machine1
+SET WP_HOST=local
+
+SET WC_KEY=ck_ced88d5026129fafb79aa8b1f5f5a3e2d5a8ed13
+SET WC_SECRET=cs_07db1e7fe0bc1205fa8bd46e6d5e73f5745e7ce6
+
+
+SET DB_USER=root
+SET DB_PASSWORD=root
+

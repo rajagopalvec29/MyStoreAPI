@@ -1,0 +1,84 @@
+{
+  "uid" : "2e7d5b76fe75c189",
+  "name" : "test_create_coupons[fixed_product]",
+  "fullName" : "TestCases.Coupons.test_create_coupon#test_create_coupons",
+  "historyId" : "48816adcaa2b1f1903086b95da998958",
+  "time" : {
+    "start" : 1708344080891,
+    "stop" : 1708344082895,
+    "duration" : 2004
+  },
+  "status" : "passed",
+  "flaky" : false,
+  "newFailed" : false,
+  "beforeStages" : [ ],
+  "testStage" : {
+    "status" : "passed",
+    "steps" : [ ],
+    "attachments" : [ {
+      "uid" : "ceb133c3764418b9",
+      "name" : "log",
+      "source" : "ceb133c3764418b9.txt",
+      "type" : "text/plain",
+      "size" : 416
+    }, {
+      "uid" : "77b19d28e5996b24",
+      "name" : "stdout",
+      "source" : "77b19d28e5996b24.txt",
+      "type" : "text/plain",
+      "size" : 900
+    } ],
+    "parameters" : [ ],
+    "attachmentsCount" : 2,
+    "shouldDisplayMessage" : false,
+    "stepsCount" : 0,
+    "hasContent" : true
+  },
+  "afterStages" : [ ],
+  "labels" : [ {
+    "name" : "tag",
+    "value" : "coupons"
+  }, {
+    "name" : "tag",
+    "value" : "tc20"
+  }, {
+    "name" : "parentSuite",
+    "value" : "TestCases.Coupons"
+  }, {
+    "name" : "suite",
+    "value" : "test_create_coupon"
+  }, {
+    "name" : "host",
+    "value" : "DESKTOP-TT53EVU"
+  }, {
+    "name" : "thread",
+    "value" : "4596-MainThread"
+  }, {
+    "name" : "framework",
+    "value" : "pytest"
+  }, {
+    "name" : "language",
+    "value" : "cpython3"
+  }, {
+    "name" : "package",
+    "value" : "TestCases.Coupons.test_create_coupon"
+  }, {
+    "name" : "resultFormat",
+    "value" : "allure2"
+  } ],
+  "parameters" : [ {
+    "name" : "discount_type",
+    "value" : "'fixed_product'"
+  } ],
+  "links" : [ ],
+  "hidden" : false,
+  "retry" : false,
+  "extra" : {
+    "severity" : "normal",
+    "retries" : [ ],
+    "categories" : [ ],
+    "tags" : [ "coupons", "tc20" ]
+  },
+  "source" : "2e7d5b76fe75c189.json",
+  "parameterValues" : [ "'fixed_product'" ]
+}

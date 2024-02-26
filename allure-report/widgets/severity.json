@@ -1,0 +1,21 @@
+[ {
+  "uid" : "2e7d5b76fe75c189",
+  "name" : "test_create_coupons[fixed_product]",
+  "time" : {
+    "start" : 1708344080891,
+    "stop" : 1708344082895,
+    "duration" : 2004
+  },
+  "status" : "passed",
+  "severity" : "normal"
+}, {
+  "uid" : "69df1f06635929ce",
+  "name" : "test_create_coupons[fixed_cart]",
+  "time" : {
+    "start" : 1708344229844,
+    "stop" : 1708344232548,
+    "duration" : 2704
+  },
+  "status" : "passed",
+  "severity" : "normal"
+} ]

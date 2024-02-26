@@ -1,0 +1,60 @@
+{
+  "uid" : "ab17fc5a4eb3bca4b216b548c7f9fcbc",
+  "name" : "timeline",
+  "children" : [ {
+    "name" : "DESKTOP-TT53EVU",
+    "children" : [ {
+      "name" : "6852-MainThread",
+      "children" : [ {
+        "name" : "test_create_coupons[fixed_cart]",
+        "uid" : "69df1f06635929ce",
+        "parentUid" : "c268fc0ccd1d06d39bc65507d47be16b",
+        "status" : "passed",
+        "time" : {
+          "start" : 1708344229844,
+          "stop" : 1708344232548,
+          "duration" : 2704
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "'fixed_cart'" ]
+      } ],
+      "uid" : "c268fc0ccd1d06d39bc65507d47be16b"
+    }, {
+      "name" : "15832-MainThread",
+      "children" : [ {
+        "name" : "test_create_coupons[fixed_cart]",
+        "uid" : "d66214dc0dc97a",
+        "parentUid" : "ce80027aec9fe07601082dcf0fc1693a",
+        "status" : "passed",
+        "time" : {
+          "start" : 1708344030688,
+          "stop" : 1708344033179,
+          "duration" : 2491
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "'fixed_cart'" ]
+      } ],
+      "uid" : "ce80027aec9fe07601082dcf0fc1693a"
+    }, {
+      "name" : "4596-MainThread",
+      "children" : [ {
+        "name" : "test_create_coupons[fixed_product]",
+        "uid" : "2e7d5b76fe75c189",
+        "parentUid" : "d43f4a7204dada5e4d15ce56b54cb627",
+        "status" : "passed",
+        "time" : {
+          "start" : 1708344080891,
+          "stop" : 1708344082895,
+          "duration" : 2004
+        },
+        "flaky" : false,
+        "newFailed" : false,
+        "parameters" : [ "'fixed_product'" ]
+      } ],
+      "uid" : "d43f4a7204dada5e4d15ce56b54cb627"
+    } ],
+    "uid" : "e4248ff8a1ec1e2d3e4fa5cc2a8bc35e"
+  } ]
+}
