@@ -15,8 +15,8 @@ class CreadentialsAPIUtilities:
             return {'wc_key':wc_key ,'wc_secret':wc_secret }
 
     def get_env_db_cred(self):
-        db_user = os.environ.get("DB_USER")
-        db_password = os.environ.get("DB_PASSWORD")
+        db_user = "root" #os.environ.get("DB_USER")
+        db_password = "root" #os.environ.get("DB_PASSWORD")
 
         if not db_user or not db_password:
             raise Exception("DB_USER and DB_PASSWORD should be in Env Variables")

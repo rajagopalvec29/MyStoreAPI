@@ -10,8 +10,8 @@ class DB_Utilities:
         self.dbcreds = self.credobj.get_env_db_cred()
         self.machine = os.environ.get("MACHINE")
         self.env = os.environ.get("ENV","test")
-        self.host = DB_HOSTS[self.machine][self.env]["host"]
-        self.port = DB_HOSTS[self.machine][self.env]["port"]
+        self.host = "localhost" #DB_HOSTS[self.machine][self.env]["host"]
+        self.port = 10005 #DB_HOSTS[self.machine][self.env]["port"]
 
     def create_connection(self):
         connection = pymysql.connect(host=self.host , user=self.dbcreds['db_user'] , password=self.dbcreds['db_password'] , port=self.port)
